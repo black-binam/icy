@@ -18,6 +18,6 @@ def _key_func(request: Request) -> str:
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=_key_func, default_limits=[], headers_enabled=True)
+limiter = Limiter(key_func=_key_func, default_limits=[], headers_enabled=False)
 
 LOGIN_LIMIT = settings.LOGIN_RATE_LIMIT

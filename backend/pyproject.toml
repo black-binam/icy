@@ -74,6 +74,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 markers = [
     "postgis: tests requiring a real PostgreSQL+PostGIS instance (skipped by default)",
     "integration: integration tests",
+    "slow: tests slower than ~2s",
 ]
 
 [tool.ruff]

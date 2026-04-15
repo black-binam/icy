@@ -32,7 +32,7 @@ def test_login_wrong_password(client: TestClient, admin_user: User) -> None:
 def test_login_unknown_email_same_shape(client: TestClient) -> None:
     resp = client.post(
         "/api/v1/auth/login",
-        json={"email": "ghost@test.local", "password": "whatever-123456"},
+        json={"email": "ghost@example.com", "password": "whatever-123456"},
     )
     assert resp.status_code == 401
     assert resp.json() == {"detail": "Invalid credentials"}
@@ -44,7 +44,7 @@ def test_login_timing_is_floor(client: TestClient, admin_user: User) -> None:
     t0 = time.perf_counter()
     client.post(
         "/api/v1/auth/login",
-        json={"email": "nobody@test.local", "password": "pw-12345678"},
+        json={"email": "nobody@example.com", "password": "pw-12345678"},
     )
     unknown = time.perf_counter() - t0
 
@@ -61,7 +61,7 @@ def test_login_timing_is_floor(client: TestClient, admin_user: User) -> None:
 
 
 def test_rate_limit_login(client: TestClient) -> None:
-    payload = {"email": "ghost@test.local", "password": "pw-12345678"}
+    payload = {"email": "ghost@example.com", "password": "pw-12345678"}
     statuses = []
     for _ in range(7):
         r = client.post("/api/v1/auth/login", json=payload)

@@ -53,6 +53,15 @@ def _configure_test_engine() -> Iterator[None]:
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def _reset_tables() -> Iterator[None]:
+    """Wipe all rows between tests for full isolation."""
+    yield
+    with core_db.engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            conn.execute(table.delete())
+
+
 @pytest.fixture()
 def db_session() -> Iterator[Session]:
     session = core_db.SessionLocal()
@@ -107,7 +116,7 @@ def _make_user(
 def admin_user(db_session: Session) -> User:
     return _make_user(
         db_session,
-        email="admin@test.local",
+        email="admin@example.com",
         password="AdminPass-123456",
         role=UserRole.ADMIN,
     )
@@ -117,7 +126,7 @@ def admin_user(db_session: Session) -> User:
 def coordinator_user(db_session: Session) -> User:
     return _make_user(
         db_session,
-        email="coord@test.local",
+        email="coord@example.com",
         password="CoordPass-123456",
         role=UserRole.COORDINATOR,
     )
@@ -127,7 +136,7 @@ def coordinator_user(db_session: Session) -> User:
 def caregiver_user(db_session: Session) -> User:
     return _make_user(
         db_session,
-        email="cg@test.local",
+        email="cg@example.com",
         password="CaregvPass-12345",
         role=UserRole.CAREGIVER,
     )
