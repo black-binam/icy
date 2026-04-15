@@ -4,14 +4,14 @@ from __future__ import annotations
 import secrets
 import time
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import write_audit
 from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db
-from app.core.rate_limit import LOGIN_LIMIT, limiter
+from app.core.rate_limit import LOGIN_LIMIT, client_ip, limiter
 from app.core.security import (
     TokenError,
     create_access_token,
@@ -43,11 +43,25 @@ def _equalize_timing(start: float) -> None:
         time.sleep(remaining)
 
 
+def _rehash_in_background(user_id: int, password: str) -> None:
+    """Re-hash a user's password using a fresh DB session (post-response)."""
+    from app.core.db import SessionLocal
+
+    with SessionLocal() as bg:
+        bg_user = bg.get(User, user_id)
+        if bg_user is None or not needs_rehash(bg_user.hashed_password):
+            return
+        bg_user.hashed_password = hash_password(password)
+        bg.add(bg_user)
+        bg.commit()
+
+
 @router.post("/login", response_model=TokenOut)
 @limiter.limit(LOGIN_LIMIT)
 def login(
     request: Request,
     payload: LoginIn,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> TokenOut:
     """Exchange credentials for an access/refresh token pair.
@@ -67,7 +81,7 @@ def login(
             db,
             actor_id=None,
             action="auth.login_failed",
-            ip=_client_ip(request),
+            ip=client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
         db.commit()
@@ -82,7 +96,7 @@ def login(
             db,
             actor_id=user.id,
             action="auth.login_failed",
-            ip=_client_ip(request),
+            ip=client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
         db.commit()
@@ -90,10 +104,11 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
 
-    # Opportunistic rehash upgrade.
+    # Opportunistic rehash upgrade is deferred to a background task so it
+    # cannot leak its ~100-200ms Argon2 cost into the response timing
+    # (would otherwise distinguish the success path from failure).
     if needs_rehash(user.hashed_password):
-        user.hashed_password = hash_password(payload.password)
-        db.add(user)
+        background_tasks.add_task(_rehash_in_background, user.id, payload.password)
 
     access = create_access_token(user.id)
     refresh = create_refresh_token(user.id)
@@ -101,7 +116,7 @@ def login(
         db,
         actor_id=user.id,
         action="auth.login",
-        ip=_client_ip(request),
+        ip=client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.commit()
@@ -151,7 +166,7 @@ def logout(
         db,
         actor_id=user.id,
         action="auth.logout",
-        ip=_client_ip(request),
+        ip=client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.commit()
@@ -163,10 +178,3 @@ def me(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-def _client_ip(request: Request) -> str | None:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None

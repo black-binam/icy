@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, Float, String, Time
+from sqlalchemy import Boolean, DateTime, Float, Time
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, TimestampMixin
@@ -21,7 +21,8 @@ class Patient(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(primary_key=True)
     first_name: Mapped[str] = mapped_column(EncryptedString(), nullable=False)
     last_name: Mapped[str] = mapped_column(EncryptedString(), nullable=False)
-    address: Mapped[str] = mapped_column(String(500), nullable=False)
+    # Address is highly identifying for at-home patients: encrypted at rest.
+    address: Mapped[str] = mapped_column(EncryptedString(length=1024), nullable=False)
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lon: Mapped[float] = mapped_column(Float, nullable=False)
     phone: Mapped[str | None] = mapped_column(EncryptedString(), nullable=True)

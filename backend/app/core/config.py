@@ -52,10 +52,22 @@ class Settings(BaseSettings):
     # Rate limit
     LOGIN_RATE_LIMIT: str = "5/minute"
 
+    # Trusted reverse-proxy CIDRs allowed to set X-Forwarded-For.
+    # Comma-separated. Empty means: never trust the header.
+    TRUSTED_PROXY_CIDRS: str = ""
+
     @field_validator("FIELD_ENCRYPTION_KEY")
     @classmethod
     def _check_fernet_key(cls, v: str) -> str:
-        """Ensure the Fernet key decodes to exactly 32 raw bytes (urlsafe-base64)."""
+        """Ensure the Fernet key decodes to exactly 32 raw bytes (urlsafe-base64).
+
+        Also refuses the .env.example placeholder regardless of environment,
+        to avoid an accidental deployment with the well-known dev key.
+        """
+        if "change-me" in v.lower():
+            raise ValueError(
+                "FIELD_ENCRYPTION_KEY contains the placeholder 'change-me'; generate a real key"
+            )
         try:
             raw = base64.urlsafe_b64decode(v.encode("ascii"))
         except Exception as exc:
@@ -70,7 +82,17 @@ class Settings(BaseSettings):
         env = info.data.get("ENVIRONMENT", "development")
         if env == "production" and len(v) < 32:
             raise ValueError("SECRET_KEY must be >=32 characters in production")
+        # Refuse known placeholder values regardless of environment to avoid
+        # accidental staging/prod deployments with the example key.
+        if "change-me" in v.lower():
+            raise ValueError(
+                "SECRET_KEY contains the placeholder 'change-me'; generate a real secret"
+            )
         return v
+
+    @property
+    def trusted_proxy_cidrs_list(self) -> list[str]:
+        return [c.strip() for c in self.TRUSTED_PROXY_CIDRS.split(",") if c.strip()]
 
     @property
     def cors_origins_list(self) -> list[str]:

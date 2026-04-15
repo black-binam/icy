@@ -258,9 +258,14 @@ def optimize_routes(
         ) from exc
     except Exception as exc:  # noqa: BLE001
         # The solver module defines RoutingError; fall back to generic 500.
+        # Do NOT echo `exc` to clients (potential PII / internal paths).
+        # Server-side logging captures the trace via FastAPI's exception handler.
+        import logging as _logging
+
+        _logging.getLogger(__name__).exception("routes.optimize failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Solver failed: {exc}",
+            detail="Routing solver error",
         ) from exc
 
     # Persist as draft Routes.

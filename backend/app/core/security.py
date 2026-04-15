@@ -18,7 +18,15 @@ settings = get_settings()
 
 TokenType = Literal["access", "refresh"]
 
-_password_hasher = PasswordHasher()
+# Argon2id parameters frozen explicitly to OWASP 2023 recommendation.
+# Do not relax without re-running cost benchmarks on production hardware.
+_password_hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,  # 64 MiB
+    parallelism=2,
+    hash_len=32,
+    salt_len=16,
+)
 _fernet = Fernet(settings.FIELD_ENCRYPTION_KEY.encode("ascii"))
 
 

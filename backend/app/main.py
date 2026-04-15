@@ -16,21 +16,20 @@ from app.core.audit import anonymize_ip, hash_user_agent, write_audit
 from app.core.config import get_settings
 from app.core.deps import get_current_user
 from app.core.logging import configure_logging
-from app.core.rate_limit import limiter
+from app.core.rate_limit import client_ip, limiter
 
 configure_logging()
 log = logging.getLogger("app")
 
 _MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
-
-def _client_ip(request: Request) -> str | None:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return None
+# GET on these path prefixes is also audited (HDS read-access traceability).
+_SENSITIVE_READ_PREFIXES: tuple[str, ...] = (
+    "/api/v1/patients",
+    "/api/v1/routes",
+    "/api/v1/caregivers",
+    "/api/v1/users",
+)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -65,10 +64,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:  # type: ignore[no-untyped-def]
         response = await call_next(request)
 
-        if request.method not in _MUTATING_METHODS:
-            return response
-        # Skip audit for the audit-log endpoints themselves (none exposed yet).
-        if not request.url.path.startswith("/api/"):
+        path = request.url.path
+        is_mutation = request.method in _MUTATING_METHODS and path.startswith("/api/")
+        is_sensitive_read = (
+            request.method == "GET"
+            and any(path.startswith(p) for p in _SENSITIVE_READ_PREFIXES)
+        )
+        if not (is_mutation or is_sensitive_read):
             return response
 
         actor_id: int | None = None
@@ -93,7 +95,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     db,
                     actor_id=actor_id,
                     action=f"{request.method} {request.url.path}",
-                    ip=_client_ip(request),
+                    ip=client_ip(request),
                     user_agent=request.headers.get("user-agent"),
                 )
                 db.commit()

@@ -98,7 +98,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("first_name", sa.String(length=1024), nullable=False),  # ciphertext
         sa.Column("last_name", sa.String(length=1024), nullable=False),
-        sa.Column("address", sa.String(length=500), nullable=False),
+        sa.Column("address", sa.String(length=1024), nullable=False),  # ciphertext
         sa.Column("lat", sa.Float(), nullable=False),
         sa.Column("lon", sa.Float(), nullable=False),
         sa.Column("phone", sa.String(length=1024), nullable=True),
