@@ -9,21 +9,26 @@ from app.core.deps import get_db, require_role
 from app.models.caregiver import Caregiver
 from app.models.user import User, UserRole
 from app.schemas.caregiver import CaregiverCreate, CaregiverOut, CaregiverUpdate
+from app.schemas.pagination import Paginated
 
 router = APIRouter(prefix="/caregivers", tags=["caregivers"])
 
 _STAFF = (UserRole.ADMIN.value, UserRole.COORDINATOR.value)
 
 
-@router.get("", response_model=list[CaregiverOut])
+@router.get("", response_model=Paginated[CaregiverOut])
 def list_caregivers(
     db: Session = Depends(get_db),
     _: User = Depends(require_role(*_STAFF)),
-    skip: int = 0,
-    limit: int = 100,
-) -> list[Caregiver]:
-    stmt = select(Caregiver).offset(skip).limit(limit)
-    return list(db.scalars(stmt).all())
+    page: int = 1,
+    page_size: int = 100,
+) -> Paginated[CaregiverOut]:
+    from sqlalchemy import func
+
+    stmt = select(Caregiver)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all())
+    return Paginated(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=CaregiverOut, status_code=status.HTTP_201_CREATED)

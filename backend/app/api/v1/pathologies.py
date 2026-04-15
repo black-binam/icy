@@ -8,18 +8,26 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_db, require_role
 from app.models.pathology import Pathology
 from app.models.user import User, UserRole
+from app.schemas.pagination import Paginated
 from app.schemas.pathology import PathologyCreate, PathologyOut, PathologyUpdate
 
 router = APIRouter(prefix="/pathologies", tags=["pathologies"])
 
 
-@router.get("", response_model=list[PathologyOut])
+@router.get("", response_model=Paginated[PathologyOut])
 def list_pathologies(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
-) -> list[Pathology]:
+    page: int = 1,
+    page_size: int = 100,
+) -> Paginated[PathologyOut]:
     """Any authenticated user may read the reference table."""
-    return list(db.scalars(select(Pathology)).all())
+    from sqlalchemy import func
+
+    stmt = select(Pathology)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all())
+    return Paginated(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=PathologyOut, status_code=status.HTTP_201_CREATED)

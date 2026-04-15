@@ -25,7 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { getErrorMessage } from '@/lib/utils';
 import type { Paginated, Pathology, PathologyUpsert } from '@/types/api';
@@ -79,7 +79,7 @@ export default function PathologiesPage() {
   const upsertMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const payload: PathologyUpsert = values;
-      if (editing) return apiPut<Pathology, PathologyUpsert>(`/pathologies/${editing.id}`, payload);
+      if (editing) return apiPatch<Pathology, PathologyUpsert>(`/pathologies/${editing.id}`, payload);
       return apiPost<Pathology, PathologyUpsert>('/pathologies', payload);
     },
     onSuccess: () => {

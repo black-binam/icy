@@ -120,6 +120,15 @@ export async function apiPut<TResp, TBody = unknown>(
   return data;
 }
 
+export async function apiPatch<TResp, TBody = unknown>(
+  url: string,
+  body?: TBody,
+  config?: AxiosRequestConfig,
+): Promise<TResp> {
+  const { data } = await api.patch<TResp>(url, body, config);
+  return data;
+}
+
 export async function apiDelete<TResp = void>(
   url: string,
   config?: AxiosRequestConfig,

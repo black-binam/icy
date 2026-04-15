@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { getErrorMessage, formatMinutes } from '@/lib/utils';
 import type { Caregiver, CaregiverUpsert, Paginated } from '@/types/api';
@@ -100,7 +100,7 @@ export default function CaregiversPage() {
           ? values.skills.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
       };
-      if (editing) return apiPut<Caregiver, CaregiverUpsert>(`/caregivers/${editing.id}`, payload);
+      if (editing) return apiPatch<Caregiver, CaregiverUpsert>(`/caregivers/${editing.id}`, payload);
       return apiPost<Caregiver, CaregiverUpsert>('/caregivers', payload);
     },
     onSuccess: () => {

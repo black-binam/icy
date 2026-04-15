@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { apiDelete, apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 import { getErrorMessage } from '@/lib/utils';
 import type { Paginated, Patient, PatientUpsert } from '@/types/api';
@@ -95,7 +95,7 @@ export default function PatientsPage() {
         notes: values.notes ? values.notes : null,
       };
       if (editing) {
-        return apiPut<Patient, PatientUpsert>(`/patients/${editing.id}`, payload);
+        return apiPatch<Patient, PatientUpsert>(`/patients/${editing.id}`, payload);
       }
       return apiPost<Patient, PatientUpsert>('/patients', payload);
     },

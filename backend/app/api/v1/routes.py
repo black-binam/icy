@@ -16,6 +16,7 @@ from app.models.pathology import Pathology
 from app.models.route import Route, RouteStatus
 from app.models.route_stop import RouteStop
 from app.models.user import User, UserRole
+from app.schemas.pagination import Paginated
 from app.schemas.route import (
     RouteCreate,
     RouteOptimizeRequest,
@@ -30,20 +31,30 @@ router = APIRouter(prefix="/routes", tags=["routes"])
 _STAFF = (UserRole.ADMIN.value, UserRole.COORDINATOR.value)
 
 
-@router.get("", response_model=list[RouteOut])
+@router.get("", response_model=Paginated[RouteOut])
 def list_routes(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-    skip: int = 0,
-    limit: int = 100,
-) -> list[Route]:
+    page: int = 1,
+    page_size: int = 100,
+    date: str | None = None,
+) -> Paginated[RouteOut]:
+    from sqlalchemy import func
+
     stmt = select(Route).options(selectinload(Route.stops))
     if user.role == UserRole.CAREGIVER:
         cg = user.caregiver
         if cg is None:
-            return []
+            return Paginated(items=[], total=0, page=page, page_size=page_size)
         stmt = stmt.where(Route.caregiver_id == cg.id)
-    return list(db.scalars(stmt.offset(skip).limit(limit)).all())
+    if date:
+        from datetime import date as date_type
+
+        parsed = date_type.fromisoformat(date)
+        stmt = stmt.where(Route.date == parsed)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)).all())
+    return Paginated(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=RouteOut, status_code=status.HTTP_201_CREATED)
@@ -117,6 +128,28 @@ def update_route(
                     estimated_care_minutes=stop.estimated_care_minutes,
                 )
             )
+    db.add(route)
+    db.commit()
+    db.refresh(route)
+    return route
+
+
+@router.put("/{route_id}/stops/order", response_model=RouteOut)
+def reorder_stops(
+    route_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(*_STAFF)),
+) -> Route:
+    """Reorder stops by providing an ordered list of stop IDs."""
+    route = db.get(Route, route_id)
+    if route is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
+    stop_ids: list[int] = payload.get("stop_ids", [])
+    stops_by_id = {s.id: s for s in route.stops}
+    for idx, stop_id in enumerate(stop_ids):
+        if stop_id in stops_by_id:
+            stops_by_id[stop_id].sequence = idx
     db.add(route)
     db.commit()
     db.refresh(route)

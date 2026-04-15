@@ -11,6 +11,7 @@ from app.models.patient_pathology import PatientPathology
 from app.models.route import Route, RouteStatus
 from app.models.route_stop import RouteStop
 from app.models.user import User, UserRole
+from app.schemas.pagination import Paginated
 from app.schemas.patient import PatientCreate, PatientOut, PatientUpdate
 
 router = APIRouter(prefix="/patients", tags=["patients"])
@@ -18,14 +19,14 @@ router = APIRouter(prefix="/patients", tags=["patients"])
 _STAFF = (UserRole.ADMIN.value, UserRole.COORDINATOR.value)
 
 
-@router.get("", response_model=list[PatientOut])
+@router.get("", response_model=Paginated[PatientOut])
 def list_patients(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-    skip: int = 0,
-    limit: int = 100,
-) -> list[Patient]:
-    """List patients.
+    page: int = 1,
+    page_size: int = 100,
+) -> Paginated[PatientOut]:
+    """List patients (paginated).
 
     - admin / coordinator: all active patients.
     - caregiver: only patients scheduled on their upcoming/in-progress routes.
@@ -34,7 +35,7 @@ def list_patients(
     if user.role == UserRole.CAREGIVER:
         cg = user.caregiver
         if cg is None:
-            return []
+            return Paginated(items=[], total=0, page=page, page_size=page_size)
         stmt = (
             stmt.join(RouteStop, RouteStop.patient_id == Patient.id)
             .join(Route, Route.id == RouteStop.route_id)
@@ -42,7 +43,12 @@ def list_patients(
             .where(Route.status.in_([RouteStatus.PUBLISHED, RouteStatus.IN_PROGRESS]))
             .distinct()
         )
-    return list(db.scalars(stmt.offset(skip).limit(limit)).all())
+    from sqlalchemy import func
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    skip = (page - 1) * page_size
+    items = list(db.scalars(stmt.offset(skip).limit(page_size)).all())
+    return Paginated(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)
