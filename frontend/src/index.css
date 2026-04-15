@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Theme variables (HSL triplets consumed by tailwind.config.js).
+ * Palette ICY :
+ *   - Fond : blanc cassé / slate très clair
+ *   - Primaire : teal / émeraude profond (santé, calme)
+ *   - Accent : teal clair
+ *   - Texte : slate foncé
+ */
+@layer base {
+  :root {
+    /* Base surfaces */
+    --background: 210 40% 98%; /* #f6f9fc — blanc cassé */
+    --foreground: 222 47% 11%; /* slate-900 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary — teal (sérénité médicale) */
+    --primary: 179 59% 30%; /* ≈ #1f7876 */
+    --primary-foreground: 0 0% 100%;
+
+    /* Accent — teal clair */
+    --accent: 170 50% 94%;
+    --accent-foreground: 179 59% 20%;
+
+    /* Muted — slate doux */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 40%;
+
+    /* Feedback */
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 64% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+
+    /* Chrome */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 179 59% 30%;
+
+    /* Radius global très arrondi */
+    --radius: 0.9rem;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Scrollbar discret */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400;
+  }
+
+  /* Focus ring cohérent */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
