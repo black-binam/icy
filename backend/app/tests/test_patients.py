@@ -70,7 +70,9 @@ def test_caregiver_sees_only_own_route_patients(
         "/api/v1/patients", headers={"Authorization": f"Bearer {cg_token}"}
     )
     assert r.status_code == 200
-    assert r.json() == []
+    body = r.json()
+    assert body["items"] == []
+    assert body["total"] == 0
 
 
 def test_update_and_delete_patient(
