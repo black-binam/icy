@@ -1,5 +1,4 @@
-import { cn } from '@/lib/utils';
-import { formatMinutes } from '@/lib/utils';
+import { cn, formatMinutes } from '@/lib/utils';
 
 interface WorkloadBadgeProps {
   minutes: number;
